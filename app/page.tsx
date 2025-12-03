@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { ScoutInput } from "@/components/scout-input";
 import HomeHeroBackground from "@/components/app/(home)/sections/hero/Background/Background";
 import { BackgroundOuterPiece } from "@/components/app/(home)/sections/hero/Background/BackgroundOuterPiece";
@@ -27,24 +27,26 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const pendingQuery = searchParams.get("pendingQuery");
   const { user, isLoading: authLoading } = useAuth();
-  const supabase = createClient();
+  const hasProcessedPendingQuery = useRef(false);
 
   const [query, setQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Handle pending query after login
   useEffect(() => {
-    if (pendingQuery && user && !authLoading) {
+    if (pendingQuery && user && !authLoading && !hasProcessedPendingQuery.current) {
+      hasProcessedPendingQuery.current = true;
       // Remove the query param from URL
       router.replace("/");
       // Set the query and auto-submit
       setQuery(pendingQuery);
       // Small delay to ensure state is set
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         handleSubmitWithQuery(pendingQuery);
       }, 100);
+      return () => clearTimeout(timeoutId);
     }
-  }, [pendingQuery, user, authLoading]);
+  }, [pendingQuery, user, authLoading, router]);
 
   const handleSubmitWithQuery = async (queryText: string) => {
     if (!queryText.trim() || isSubmitting) {
